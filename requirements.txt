@@ -1,0 +1,19 @@
+# FastAPI Transcription Service Requirements
+
+# Core dependencies
+fastapi==0.109.0
+uvicorn[standard]==0.24.0
+python-multipart==0.0.9
+
+# Hugging Face and ML dependencies
+torch==2.1.0
+transformers==4.36.2
+datasets==2.14.6
+librosa==0.10.1
+soundfile==0.12.1
+
+# For GPU support
+nvidia-ml-py==11.525.112
+
+# For async operations
+asyncio==3.4.3
