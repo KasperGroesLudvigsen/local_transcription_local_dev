@@ -10,6 +10,7 @@ A FastAPI-based service that exposes speech-to-text transcription capabilities u
 - Concurrent request handling (up to 10 simultaneous requests)
 - GPU-accelerated processing with CUDA support
 - Docker containerization with Docker Compose
+- Proper resource management and GPU memory cleanup
 
 ## Requirements
 
@@ -66,7 +67,7 @@ Detect language of an audio file.
 docker-compose up --build
 ```
 
-2. The API will be available at http://localhost:8000
+2. The API will be available at http://localhost:3030
 
 ## Development
 
@@ -85,6 +86,15 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
+### Running Tests
+```bash
+# Run the API test script
+python test_api.py
+
+# Run unit tests (if pytest is installed)
+pytest tests/
+```
+
 ## Deployment
 
 The service is designed to run in Docker containers with GPU support. The docker-compose.yml file is configured to:
@@ -101,3 +111,11 @@ The service is configured to work with:
 - NVIDIA driver: 580.126.09
 - Maximum concurrent requests: 10
 - Maximum file size: 500MB
+
+## Resource Management
+
+The service includes:
+- Semaphore-based concurrency control (max 10 simultaneous requests)
+- GPU memory cleanup after processing
+- Thread pool executor for asynchronous processing
+- Proper error handling with resource cleanup

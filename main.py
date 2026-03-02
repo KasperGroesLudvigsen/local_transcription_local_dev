@@ -4,11 +4,14 @@ Main FastAPI application for the transcription service.
 
 import os
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import tempfile
 from typing import Dict, Any
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 from transcriber import Transcriber
 from models import TranscriptionResponse, LanguageDetectionResponse, ErrorResponse
@@ -36,6 +39,11 @@ app.add_middleware(
 # Global transcriber instance
 transcriber = None
 
+# Thread pool for handling concurrent requests
+# Limit to 10 concurrent requests as per requirements
+executor = ThreadPoolExecutor(max_workers=10)
+request_semaphore = asyncio.Semaphore(10)
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize the transcriber when the application starts."""
@@ -51,6 +59,11 @@ async def startup_event():
 async def root():
     """Root endpoint to verify service is running."""
     return {"message": "Local Transcription API is running"}
+
+async def run_in_thread(func, *args):
+    """Run a blocking function in a thread pool."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(executor, func, *args)
 
 @app.post("/transcribe", response_model=TranscriptionResponse)
 async def transcribe_audio(file: UploadFile = File(...)):
@@ -86,26 +99,28 @@ async def transcribe_audio(file: UploadFile = File(...)):
             detail=f"File too large. Maximum size is {max_file_size / (1024*1024)} MB"
         )
 
-    # Save file temporarily for processing
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
-            tmp_file.write(content)
-            tmp_file_path = tmp_file.name
+    # Acquire semaphore to limit concurrent requests
+    async with request_semaphore:
+        # Save file temporarily for processing
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
+                tmp_file.write(content)
+                tmp_file_path = tmp_file.name
 
-        # Perform transcription
-        result = transcriber.transcribe(tmp_file_path)
+            # Perform transcription using thread pool to avoid blocking
+            result = await run_in_thread(transcriber.transcribe, tmp_file_path)
 
-        # Clean up temporary file
-        os.unlink(tmp_file_path)
-
-        return result
-
-    except Exception as e:
-        # Clean up temporary file if it exists
-        if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+            # Clean up temporary file
             os.unlink(tmp_file_path)
-        logger.error(f"Transcription error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
+
+            return result
+
+        except Exception as e:
+            # Clean up temporary file if it exists
+            if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+            logger.error(f"Transcription error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Transcription failed: {str(e)}")
 
 @app.post("/detect_language", response_model=LanguageDetectionResponse)
 async def detect_language(file: UploadFile = File(...)):
@@ -141,26 +156,28 @@ async def detect_language(file: UploadFile = File(...)):
             detail=f"File too large. Maximum size is {max_file_size / (1024*1024)} MB"
         )
 
-    # Save file temporarily for processing
-    try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
-            tmp_file.write(content)
-            tmp_file_path = tmp_file.name
+    # Acquire semaphore to limit concurrent requests
+    async with request_semaphore:
+        # Save file temporarily for processing
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=file_extension) as tmp_file:
+                tmp_file.write(content)
+                tmp_file_path = tmp_file.name
 
-        # Perform language detection
-        result = transcriber.detect_language(tmp_file_path)
+            # Perform language detection using thread pool to avoid blocking
+            result = await run_in_thread(transcriber.detect_language, tmp_file_path)
 
-        # Clean up temporary file
-        os.unlink(tmp_file_path)
-
-        return result
-
-    except Exception as e:
-        # Clean up temporary file if it exists
-        if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+            # Clean up temporary file
             os.unlink(tmp_file_path)
-        logger.error(f"Language detection error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Language detection failed: {str(e)}")
+
+            return result
+
+        except Exception as e:
+            # Clean up temporary file if it exists
+            if 'tmp_file_path' in locals() and os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+            logger.error(f"Language detection error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Language detection failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

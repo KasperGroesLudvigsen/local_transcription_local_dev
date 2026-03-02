@@ -7,6 +7,7 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from typing import Dict, Any, Optional
 import logging
+import gc
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -84,14 +85,25 @@ class Transcriber:
             text = result.get("text", "")
 
             # Return structured response
-            return {
+            response = {
                 "full_text": text,
                 "timestamped_transcriptions": result.get("chunks", []),
                 "language": result.get("language", "unknown")
             }
 
+            # Force garbage collection to free up GPU memory
+            if torch.cuda.is_available():
+                gc.collect()
+                torch.cuda.empty_cache()
+
+            return response
+
         except Exception as e:
             logger.error(f"Transcription failed: {str(e)}")
+            # Force garbage collection in case of error
+            if torch.cuda.is_available():
+                gc.collect()
+                torch.cuda.empty_cache()
             raise RuntimeError(f"Transcription failed: {str(e)}")
 
     def detect_language(self, audio_file_path: str) -> Dict[str, Any]:
@@ -111,11 +123,22 @@ class Transcriber:
             result = self.pipe(audio_file_path)
 
             # Return language information
-            return {
+            response = {
                 "detected_language": result.get("language", "unknown"),
                 "confidence": result.get("language_confidence", 0.0)
             }
 
+            # Force garbage collection to free up GPU memory
+            if torch.cuda.is_available():
+                gc.collect()
+                torch.cuda.empty_cache()
+
+            return response
+
         except Exception as e:
             logger.error(f"Language detection failed: {str(e)}")
+            # Force garbage collection in case of error
+            if torch.cuda.is_available():
+                gc.collect()
+                torch.cuda.empty_cache()
             raise RuntimeError(f"Language detection failed: {str(e)}")
