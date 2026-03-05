@@ -11,6 +11,7 @@ transformers==4.36.2
 datasets==2.14.6
 librosa==0.10.1
 soundfile==0.12.1
+accelerate==0.21.0
 
 # For GPU support
 nvidia-ml-py==11.525.112

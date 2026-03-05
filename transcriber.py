@@ -15,16 +15,26 @@ logger = logging.getLogger(__name__)
 class Transcriber:
     """Handles loading and using the Hugging Face speech transcription model."""
 
-    def __init__(self, model_id: str = "syvai/hviske-v3-conversation"):
+    def __init__(self, model_id: str = "syvai/hviske-v3-conversation", token: Optional[str] = None):
         """
         Initialize the transcriber with the specified model.
 
         Args:
             model_id: Hugging Face model identifier
+            token: Hugging Face token for accessing gated models
         """
         self.model_id = model_id
-        self.device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        self.torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+        self.token = token
+
+        # Check for CUDA availability and set device accordingly
+        if torch.cuda.is_available():
+            self.device = "cuda:0"
+            self.torch_dtype = torch.float16
+        else:
+            self.device = "cpu"
+            self.torch_dtype = torch.float32
+
+        print(f"Using device: {self.device}")  # Debug output
 
         # Initialize model, processor, and pipeline
         self._initialize_model()
@@ -35,28 +45,43 @@ class Transcriber:
             logger.info(f"Loading model {self.model_id} on device {self.device}")
 
             # Load model with optimized settings for GPU
+            # For GPU, we don't need low_cpu_mem_usage as we're not dealing with large models
+            # that would overflow CPU RAM
+            model_kwargs = {
+                "torch_dtype": self.torch_dtype,
+                "use_safetensors": True,
+                "token": self.token
+            }
+
+            # Only use low_cpu_mem_usage for CPU, not GPU
+            if self.device == "cpu":
+                model_kwargs["low_cpu_mem_usage"] = True
+
             self.model = AutoModelForSpeechSeq2Seq.from_pretrained(
                 self.model_id,
-                torch_dtype=self.torch_dtype,
-                low_cpu_mem_usage=True,
-                use_safetensors=True
+                **model_kwargs
             )
             self.model.to(self.device)
 
             # Load processor
-            self.processor = AutoProcessor.from_pretrained(self.model_id)
+            self.processor = AutoProcessor.from_pretrained(self.model_id, token=self.token)
 
             # Create ASR pipeline
+            pipeline_kwargs = {
+                "model": self.model,
+                "tokenizer": self.processor.tokenizer,
+                "feature_extractor": self.processor.feature_extractor,
+                "max_new_tokens": 128,
+                "chunk_length_s": 30,
+                "batch_size": 16,
+                "torch_dtype": self.torch_dtype,
+                "device": self.device,
+                "token": self.token
+            }
+
             self.pipe = pipeline(
                 "automatic-speech-recognition",
-                model=self.model,
-                tokenizer=self.processor.tokenizer,
-                feature_extractor=self.processor.feature_extractor,
-                max_new_tokens=128,
-                chunk_length_s=30,
-                batch_size=16,
-                torch_dtype=self.torch_dtype,
-                device=self.device,
+                **pipeline_kwargs
             )
 
             logger.info("Model loaded successfully")

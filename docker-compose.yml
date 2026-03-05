@@ -17,5 +17,6 @@ services:
     environment:
       - PYTHONPATH=/app
       - CUDA_VISIBLE_DEVICES=0
+      - HF_TOKEN=${HF_TOKEN}
     stdin_open: true
     tty: true

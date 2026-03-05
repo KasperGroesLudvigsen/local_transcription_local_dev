@@ -39,6 +39,12 @@ app.add_middleware(
 # Global transcriber instance
 transcriber = None
 
+# Read Hugging Face token from environment variable if available
+hf_token = os.getenv("HF_TOKEN")
+
+# Debug: Print if token is available
+print(f"HF_TOKEN available: {'Yes' if hf_token else 'No'}")
+
 # Thread pool for handling concurrent requests
 # Limit to 10 concurrent requests as per requirements
 executor = ThreadPoolExecutor(max_workers=10)
@@ -49,7 +55,7 @@ async def startup_event():
     """Initialize the transcriber when the application starts."""
     global transcriber
     try:
-        transcriber = Transcriber()
+        transcriber = Transcriber(token=hf_token)
         logger.info("Transcription service initialized successfully")
     except Exception as e:
         logger.error(f"Failed to initialize transcription service: {str(e)}")
@@ -181,4 +187,4 @@ async def detect_language(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=3030)

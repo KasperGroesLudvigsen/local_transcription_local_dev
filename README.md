@@ -18,6 +18,7 @@ A FastAPI-based service that exposes speech-to-text transcription capabilities u
 - NVIDIA driver 580.126.09 or higher
 - 128GB unified VRAM (Fusionxpark environment)
 - Docker and Docker Compose
+- Hugging Face token for accessing the gated model
 
 ## API Endpoints
 
@@ -62,7 +63,18 @@ Detect language of an audio file.
 
 ## Quick Start
 
-1. Build and run with Docker Compose:
+1. First, obtain your Hugging Face token from https://huggingface.co/settings/tokens
+2. Set the token in your environment:
+```bash
+export HF_TOKEN=your_actual_token_here
+```
+Or create a `.env` file:
+```bash
+cp .env.example .env
+# Then edit .env to add your token
+```
+
+3. Build and run with Docker Compose:
 ```bash
 docker-compose up --build
 ```
@@ -83,7 +95,7 @@ pip install -r requirements.txt
 
 ### Running Locally
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 3030
 ```
 
 ### Running Tests
@@ -99,9 +111,10 @@ pytest tests/
 
 The service is designed to run in Docker containers with GPU support. The docker-compose.yml file is configured to:
 - Use NVIDIA GPU drivers
-- Map the required port (8000)
+- Map the required port (3030)
 - Mount volume for data storage
 - Set appropriate CUDA environment variables
+- Pass Hugging Face token for model access
 
 ## Configuration
 
@@ -111,6 +124,7 @@ The service is configured to work with:
 - NVIDIA driver: 580.126.09
 - Maximum concurrent requests: 10
 - Maximum file size: 500MB
+- Port: 3030
 
 ## Resource Management
 
