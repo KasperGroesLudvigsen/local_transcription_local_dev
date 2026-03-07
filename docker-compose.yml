@@ -2,7 +2,8 @@ version: '3.8'
 
 services:
   transcription-api:
-    build: .
+    #build: .
+    image: hviske
     ports:
       - "3030:3030"
     volumes:

@@ -73,10 +73,15 @@ class Transcriber:
                 "feature_extractor": self.processor.feature_extractor,
                 "max_new_tokens": 128,
                 "chunk_length_s": 30,
-                "batch_size": 16,
                 "torch_dtype": self.torch_dtype,
                 "device": self.device,
-                "token": self.token
+                "token": self.token,
+                "return_timestamps": True,
+                "generate_kwargs": {
+                    "pad_token_id": self.processor.tokenizer.pad_token_id,
+                    "bos_token_id": self.processor.tokenizer.bos_token_id,
+                    "eos_token_id": self.processor.tokenizer.eos_token_id
+                }
             }
 
             self.pipe = pipeline(

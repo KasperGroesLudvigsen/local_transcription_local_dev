@@ -6,6 +6,7 @@ This script tests the API endpoints with a sample audio file.
 
 import requests
 import os
+import sys
 from pathlib import Path
 
 def test_api_health():
@@ -25,14 +26,14 @@ def test_api_health():
         print("✗ Failed to connect to API - is it running?")
         return False
 
-def test_transcribe_endpoint():
+def test_transcribe_endpoint(audio_file_path):
     """Test the transcribe endpoint with a sample audio file."""
     print("Testing transcribe endpoint...")
 
-    # Check if test.wav exists
-    test_file = Path("test.wav")
+    # Check if the specified audio file exists
+    test_file = Path(audio_file_path)
     if not test_file.exists():
-        print("✗ test.wav file not found in project root")
+        print(f"✗ Audio file '{audio_file_path}' not found")
         return False
 
     try:
@@ -42,6 +43,7 @@ def test_transcribe_endpoint():
 
         if response.status_code == 200:
             result = response.json()
+            print(f"FULL RESPONSE:\n {result}")
             print("✓ Transcribe endpoint successful")
             print(f"  Full text: {result.get('full_text', 'No text')[:100]}...")
             print(f"  Language: {result.get('language', 'Unknown')}")
@@ -49,7 +51,7 @@ def test_transcribe_endpoint():
         elif response.status_code == 400:
             print(f"✗ Transcribe endpoint returned 400 (expected for invalid file format)")
             print(f"  Error: {response.json().get('detail', 'Unknown error')}")
-            return True  # This might be expected for test.wav format
+            return True  # This might be expected for invalid file format
         else:
             print(f"✗ Transcribe endpoint failed with status code: {response.status_code}")
             print(f"  Error: {response.json().get('detail', 'Unknown error')}")
@@ -62,14 +64,14 @@ def test_transcribe_endpoint():
         print(f"✗ Error calling transcribe endpoint: {str(e)}")
         return False
 
-def test_detect_language_endpoint():
+def test_detect_language_endpoint(audio_file_path):
     """Test the detect_language endpoint with a sample audio file."""
     print("Testing detect_language endpoint...")
 
-    # Check if test.wav exists
-    test_file = Path("test.wav")
+    # Check if the specified audio file exists
+    test_file = Path(audio_file_path)
     if not test_file.exists():
-        print("✗ test.wav file not found in project root")
+        print(f"✗ Audio file '{audio_file_path}' not found")
         return False
 
     try:
@@ -86,7 +88,7 @@ def test_detect_language_endpoint():
         elif response.status_code == 400:
             print(f"✗ Detect language endpoint returned 400 (expected for invalid file format)")
             print(f"  Error: {response.json().get('detail', 'Unknown error')}")
-            return True  # This might be expected for test.wav format
+            return True  # This might be expected for invalid file format
         else:
             print(f"✗ Detect language endpoint failed with status code: {response.status_code}")
             print(f"  Error: {response.json().get('detail', 'Unknown error')}")
@@ -101,12 +103,20 @@ def test_detect_language_endpoint():
 
 def main():
     """Run all tests."""
-    print("Running Local Transcription API Tests\n")
+    # Check if audio file path is provided as command line argument
+    if len(sys.argv) != 2:
+        print("Usage: python3 test_api.py <audio_file_path>")
+        print("Example: python3 test_api.py my_audio.wav")
+        return 1
+
+    audio_file_path = sys.argv[1]
+
+    print(f"Running Local Transcription API Tests with audio file: {audio_file_path}\n")
 
     tests = [
         test_api_health,
-        test_transcribe_endpoint,
-        test_detect_language_endpoint
+        lambda: test_transcribe_endpoint(audio_file_path),
+        lambda: test_detect_language_endpoint(audio_file_path)
     ]
 
     passed = 0

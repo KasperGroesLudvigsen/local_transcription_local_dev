@@ -1,6 +1,12 @@
 # Local Transcription API
-
 A FastAPI-based service that exposes speech-to-text transcription capabilities using the Hugging Face "syvai/hviske-v3-conversation" model.
+
+
+## Run outside Docker:
+```bash
+uv run uvicorn main:app --host 0.0.0.0 --port 3030
+```
+
 
 ## Features
 

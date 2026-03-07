@@ -1,34 +1,32 @@
 # Dockerfile for Local Transcription API
-# Uses NVIDIA CUDA base image for GPU support
-
 FROM nvidia/cuda:13.0.0-runtime-ubuntu22.04
 
-# Set working directory
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/root/.local/bin:$PATH"
 
-# Install system dependencies
+# Install system dependencies + curl for uv installer
 RUN apt-get update && apt-get install -y \
     python3 \
-    python3-pip \
     python3-dev \
     libsndfile1 \
+    ffmpeg \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (for better caching)
-COPY requirements.txt .
+# Install uv
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy project files
+COPY pyproject.toml uv.lock ./
 
-# Copy application code
+# Install dependencies from lockfile (exact same versions as local)
+RUN uv sync --frozen --no-dev
+
 COPY . .
 
-# Expose port
 EXPOSE 3030
 
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3030"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3030"]
